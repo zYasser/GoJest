@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>File Upload - Test Summary</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <style>
+      [x-cloak] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+      <div class="text-center mb-12">
+        <h1 class="text-4xl font-bold text-gray-800 mb-4">📁 File Upload</h1>
+        <p class="text-lg text-gray-600">
+          Upload your test summary files with ease
+        </p>
+      </div>
+
+      <div class="max-w-2xl mx-auto">
+        <form
+          action="/upload-test-summary"
+          method="post"
+          enctype="multipart/form-data"
+          class="space-y-6"
+          hx-post="/upload-test-summary"
+          hx-target="#result"
+          hx-indicator="#loading"
+          
+        >
+          <div
+            class="relative border-2 border-dashed border-gray-300 rounded-xl p-12 text-center hover:border-blue-400 hover:bg-blue-50 transition-all duration-300 group"
+            ondrop="handleDrop(event)"
+            ondragover="handleDragOver(event)"
+            ondragleave="handleDragLeave(event)"
+          >
+            <input
+              type="file"
+              name="file"
+              id="fileInput"
+              class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              accept=".json"
+              required
+              onchange="handleFileSelect(event)"
+            />
+
+            <div class="space-y-4">
+              <div
+                class="mx-auto w-16 h-16 bg-blue-100 group-hover:bg-blue-200 rounded-full flex items-center justify-center transition-colors duration-300"
+                id="uploadIcon"
+              >
+                <svg
+                  class="w-8 h-8 text-blue-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                  ></path>
+                </svg>
+              </div>
+
+              <div>
+                <p
+                  class="text-xl font-semibold text-gray-700 mb-2"
+                  id="uploadText"
+                >
+                  Click to select file
+                </p>
+                <p class="text-gray-500 mb-4" id="uploadSubtext">
+                  or drag and drop your file here
+                </p>
+                <p class="text-sm text-gray-400">Supports: JSON</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="text-center">
+            <button
+              id="uploadButton"
+              type="submit"
+              class="hidden bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-3 px-8 rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+            >
+              <span id="uploadText">Upload File</span>
+              <span id="loading" class="htmx-indicator">
+                <svg
+                  class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    class="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    stroke-width="4"
+                  ></circle>
+                  <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                Uploading...
+              </span>
+            </button>
+          </div>
+        </form>
+
+        <div id="result" class="mt-6">
+        </div>
+
+      </div>
+    </div>
+
+    <script>
+      function handleDragOver(e) {
+        e.preventDefault();
+        e.currentTarget.classList.add(
+          "border-blue-500",
+          "bg-blue-50",
+          "scale-105"
+        );
+        document.getElementById("uploadText").textContent =
+          "Drop your file here!";
+        document.getElementById("uploadSubtext").textContent =
+          "Release to upload";
+      }
+
+      function handleDragLeave(e) {
+        e.preventDefault();
+        e.currentTarget.classList.remove(
+          "border-blue-500",
+          "bg-blue-50",
+          "scale-105"
+        );
+        document.getElementById("uploadText").textContent =
+          "Click to select file";
+        document.getElementById("uploadSubtext").textContent =
+          "or drag and drop your file here";
+      }
+
+      function handleDrop(e) {
+        e.preventDefault();
+        e.currentTarget.classList.remove(
+          "border-blue-500",
+          "bg-blue-50",
+          "scale-105"
+        );
+        document.getElementById("uploadText").textContent =
+          "Click to select file";
+        document.getElementById("uploadSubtext").textContent =
+          "or drag and drop your file here";
+
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+          document.getElementById("fileInput").files = files;
+          handleFileSelect({ target: { files: files } });
+        }
+      }
+
+      function handleFileSelect(e) {
+        const file = e.target.files[0];
+        console.log(file);
+        if (file) {
+          document.getElementById("uploadButton").classList.remove("hidden");
+          document.getElementById(
+            "uploadText"
+          ).textContent = `Selected: ${file.name}`;
+          document.getElementById("uploadSubtext").textContent = `Size: ${(
+            file.size / 1024
+          ).toFixed(1)} KB`;
+        }
+      }
+    </script>
+  </body>
+</html>

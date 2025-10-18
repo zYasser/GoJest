@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Summary</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script>
+        function stripAnsiCodes(text) {
+            if (!text) return text;
+            return text.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
+        }
+
+        function showFailureModalFromButton(button) {
+            const fullName = button.getAttribute('data-full-name');
+            const title = button.getAttribute('data-title');
+            const failureDetailsJson = button.getAttribute('data-failure-details');
+            const failureMessagesJson = button.getAttribute('data-failure-messages');
+            
+            let failureDetails = [];
+            let failureMessages = [];
+            
+            try {
+                failureDetails = failureDetailsJson ? JSON.parse(failureDetailsJson) : [];
+            } catch (e) {
+                console.error('Error parsing failure details:', e);
+                failureDetails = [];
+            }
+            
+            try {
+                failureMessages = failureMessagesJson ? JSON.parse(failureMessagesJson) : [];
+            } catch (e) {
+                console.error('Error parsing failure messages:', e);
+                failureMessages = [];
+            }
+            
+            showFailureModal(fullName, title, failureDetails, failureMessages);
+        }
+
+        function showFailureModal(fullName, title, failureDetails, failureMessages) {
+            const modal = document.getElementById('failureModal');
+            const testNameElement = document.getElementById('modalTestName');
+            const testTitleElement = document.getElementById('modalTestTitle');
+            const failureDetailsElement = document.getElementById('modalFailureDetails');
+            const stackTraceElement = document.getElementById('modalStackTrace');
+
+            testNameElement.textContent = fullName;
+            testTitleElement.textContent = title;
+
+            let failureDetailsHTML = '';
+            if (failureDetails && Array.isArray(failureDetails) && failureDetails.length > 0) {
+                failureDetails.forEach((detail, index) => {
+                    if (detail && detail.matcherResult) {
+                        const matcher = detail.matcherResult;
+                        failureDetailsHTML += `
+                            <div class="bg-gray-50 border rounded-lg p-4 mb-4">
+                                <div class="mb-2">
+                                    <span class="font-semibold text-gray-700">Matcher:</span>
+                                    <span class="text-gray-800">${matcher.name || 'Unknown'}</span>
+                                </div>
+                                <div class="flex justify-between mb-2">
+                                    <div>
+                                        <span class="font-semibold text-gray-700">Expected:</span>
+                                        <span class="text-green-600 font-mono">${JSON.stringify(matcher.expected)}</span>
+                                    </div>
+                                    <div>
+                                        <span class="font-semibold text-gray-700">Received:</span>
+                                        <span class="text-red-600 font-mono">${JSON.stringify(matcher.actual)}</span>
+                                    </div>
+                                </div>
+                                <p class="text-sm text-gray-600 font-mono whitespace-pre-line">
+                                    ${stripAnsiCodes(matcher.message) || 'No message available'}
+                                </p>
+                            </div>
+                        `;
+                    }
+                });
+            }
+
+            failureDetailsElement.innerHTML = failureDetailsHTML || '<p class="text-gray-500">No failure details available</p>';
+
+            let stackTraceHTML = '';
+            if (failureMessages && Array.isArray(failureMessages) && failureMessages.length > 0) {
+                failureMessages.forEach(message => {
+                    if (message) {
+                        stackTraceHTML += `<pre class="text-xs text-gray-700 font-mono whitespace-pre-wrap">${stripAnsiCodes(message)}</pre>`;
+                    }
+                });
+            }
+
+            stackTraceElement.innerHTML = stackTraceHTML || '<p class="text-gray-500">No stack trace available</p>';
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeFailureModal() {
+            const modal = document.getElementById('failureModal');
+            modal.classList.add('hidden');
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const modal = document.getElementById('failureModal');
+            if (modal) {
+                modal.addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        closeFailureModal();
+                    }
+                });
+            }
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeFailureModal();
+            }
+        });
+
+        function toggleAssertionDetails(fullName) {
+            console.log(fullName);
+            const detailsId = `assertionDetails-${fullName}`;
+            const detailsElement = document.getElementById(detailsId)
+            if (detailsElement.classList.contains('hidden')) {
+                detailsElement.classList.remove('hidden');
+            } else {
+                detailsElement.classList.add('hidden');
+            }
+        }
+        function applyFilters() {
+            const onlyFailedTests = document.getElementById('onlyFailedTests').checked;
+            const onlyFailedAssertions = document.getElementById('onlyFailedAssertions').checked;
+            const onlyPassedTests = document.getElementById('onlyPassedTests').checked;
+            const onlyPendingTests = document.getElementById('onlyPendingTests').checked;
+            
+            const params = new URLSearchParams();
+            if (onlyFailedTests) params.set('onlyFailedTests', 'true');
+            if (onlyFailedAssertions) params.set('onlyFailedAssertions', 'true');
+            if (onlyPassedTests) params.set('onlyPassedTests', 'true');
+            if (onlyPendingTests) params.set('onlyPendingTests', 'true');
+            
+            const newUrl = '/summary' + (params.toString() ? '?' + params.toString() : '');
+            window.location.href = newUrl;
+        }
+        
+        function clearFilters() {
+            document.getElementById('onlyFailedTests').checked = false;
+            document.getElementById('onlyFailedAssertions').checked = false;
+            document.getElementById('onlyPassedTests').checked = false;
+            document.getElementById('onlyPendingTests').checked = false;
+            window.location.href = '/summary';
+        }
+        
+        function initializeFilters() {
+            const urlParams = new URLSearchParams(window.location.search);
+            document.getElementById('onlyFailedTests').checked = urlParams.get('onlyFailedTests') === 'true';
+            document.getElementById('onlyFailedAssertions').checked = urlParams.get('onlyFailedAssertions') === 'true';
+            document.getElementById('onlyPassedTests').checked = urlParams.get('onlyPassedTests') === 'true';
+            document.getElementById('onlyPendingTests').checked = urlParams.get('onlyPendingTests') === 'true';
+        }
+        
+        document.addEventListener('DOMContentLoaded', initializeFilters);
+        
+        function filterAssertions(testName, status) {
+            const assertionsList = document.getElementById(`assertionsList-${testName}`);
+            const assertionItems = assertionsList.querySelectorAll('.assertion-item');
+            
+            const buttons = document.querySelectorAll(`[onclick*="filterAssertions('${testName}'"]`);
+            buttons.forEach(btn => {
+                btn.classList.remove('bg-red-100', 'text-red-700', 'bg-green-100', 'text-green-700', 'bg-yellow-100', 'text-yellow-700');
+                btn.classList.add('bg-gray-100', 'text-gray-700');
+            });
+            
+            const selectedButton = document.querySelector(`[onclick="filterAssertions('${testName}', '${status}')"]`);
+            if (selectedButton) {
+                selectedButton.classList.remove('bg-gray-100', 'text-gray-700');
+                if (status === 'failed') {
+                    selectedButton.classList.add('bg-red-100', 'text-red-700');
+                } else if (status === 'passed') {
+                    selectedButton.classList.add('bg-green-100', 'text-green-700');
+                } else if (status === 'pending') {
+                    selectedButton.classList.add('bg-yellow-100', 'text-yellow-700');
+                }
+            }
+            
+            assertionItems.forEach(item => {
+                const itemStatus = item.getAttribute('data-status');
+                if (itemStatus === status) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+        
+        function showAllAssertions(testName) {
+            const assertionsList = document.getElementById(`assertionsList-${testName}`);
+            const assertionItems = assertionsList.querySelectorAll('.assertion-item');
+            
+            const buttons = document.querySelectorAll(`[onclick*="filterAssertions('${testName}'"]`);
+            buttons.forEach(btn => {
+                btn.classList.remove('bg-red-100', 'text-red-700', 'bg-green-100', 'text-green-700', 'bg-yellow-100', 'text-yellow-700');
+                btn.classList.add('bg-gray-100', 'text-gray-700');
+            });
+            
+            assertionItems.forEach(item => {
+                item.style.display = 'flex';
+            });
+        }
+        
+
+    </script>
+
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-800 mb-4">📊 Test Summary</h1>
+            <p class="text-lg text-gray-600">Your test execution results</p>
+        </div>
+
+        <div class="max-w-6xl mx-auto mb-6">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">🔍 Filter Results</h2>
+                <div class="flex flex-wrap gap-4">
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" id="onlyFailedTests" class="rounded border-gray-300 text-red-600 focus:ring-red-500" 
+                               onchange="applyFilters()">
+                        <span class="text-sm font-medium text-gray-700">Show only failed tests</span>
+                    </label>
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" id="onlyFailedAssertions" class="rounded border-gray-300 text-red-600 focus:ring-red-500" 
+                               onchange="applyFilters()">
+                        <span class="text-sm font-medium text-gray-700">Show only failed assertions</span>
+                    </label>
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" id="onlyPassedTests" class="rounded border-gray-300 text-green-600 focus:ring-green-500" 
+                               onchange="applyFilters()">
+                        <span class="text-sm font-medium text-gray-700">Show only passed tests</span>
+                    </label>
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" id="onlyPendingTests" class="rounded border-gray-300 text-yellow-600 focus:ring-yellow-500" 
+                               onchange="applyFilters()">
+                        <span class="text-sm font-medium text-gray-700">Show only pending tests</span>
+                    </label>
+                    <button onclick="clearFilters()" class="ml-auto px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white text-sm font-medium rounded-md transition-colors">
+                        Clear Filters
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="max-w-6xl mx-auto">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div class="bg-white rounded-lg shadow-md p-6 text-center">
+                    <div class="text-3xl font-bold text-green-600">{{.NumPassedTests}}</div>
+                    <div class="text-sm text-gray-600">Passed Tests</div>
+                </div>
+                <div class="bg-white rounded-lg shadow-md p-6 text-center">
+                    <div class="text-3xl font-bold text-red-600">{{.NumFailedTests}}</div>
+                    <div class="text-sm text-gray-600">Failed Tests</div>
+                </div>
+                <div class="bg-white rounded-lg shadow-md p-6 text-center">
+                    <div class="text-3xl font-bold text-green-600">{{.NumPassedTestSuites}}</div>
+                    <div class="text-sm text-gray-600">Passed Test Suites</div>
+                </div>
+                <div class="bg-white rounded-lg shadow-md p-6 text-center">
+                    <div class="text-3xl font-bold text-blue-600">{{.NumTotalTestSuites}}</div>
+                    <div class="text-sm text-gray-600">Total Suites</div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">Test Results</h2>
+                <div class="space-y-4">
+                    {{range .TestResults}}
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-lg font-semibold text-gray-800">{{.Name}}</h3>
+                            <span class="px-3 py-1 rounded-full text-sm font-medium
+                                {{if eq .Status "passed"}}bg-green-100 text-green-800{{end}}
+                                {{if eq .Status "failed"}}bg-red-100 text-red-800{{end}}
+                                {{if eq .Status "pending"}}bg-yellow-100 text-yellow-800{{end}}">
+                                {{.Status}}
+                            </span>
+                        </div>
+                        <p class="text-gray-600 text-sm mb-2">{{.Summary}}</p>
+
+                        {{if .Message}}
+                        <div class="p-3 mt-2">
+                            <div class="flex justify-end">
+                                <button class="text-black px-2 py-2 rounded-md hover:bg-gray-200" id="showDetails-{{.Name}}" onclick="{
+                                    if (document.getElementById('details-{{.Name}}').classList.contains('hidden')) {
+                                        document.getElementById('details-{{.Name}}').classList.remove('hidden');
+                                        document.getElementById('showDetails-{{.Name}}').textContent = 'Hide Details';
+                                    } else {
+                                        document.getElementById('details-{{.Name}}').classList.add('hidden');
+                                        document.getElementById('showDetails-{{.Name}}').textContent = 'Show Details';
+                                    }
+                                }">
+                                    Show Details
+                                </button>
+                          
+                            </div>
+                            <div class="bg-gray-50 rounded p-3 mt-2 hidden" id="details-{{.Name}}">
+                                <p class="text-sm text-gray-700">{{.Message}}</p>
+                            </div>
+    
+
+                        </div>
+                        
+                        {{end}}
+
+                        
+                        {{if .AssertionResults}}
+                        <div class="mt-3">
+                            <div class="flex justify-between items-center mb-2">
+                                <h4 class="text-sm font-semibold text-gray-700">Assertions:</h4>
+                                <div class="flex gap-2">
+                                    <button class="text-black px-2 py-1 rounded-md hover:bg-gray-200 text-xs" id="showAssertions-{{.Name}}" onclick="{
+                                        if (document.getElementById('assertions-{{.Name}}').classList.contains('hidden')) {
+                                            document.getElementById('assertions-{{.Name}}').classList.remove('hidden');
+                                            document.getElementById('showAssertions-{{.Name}}').textContent = 'Hide';
+                                        } else {
+                                            document.getElementById('assertions-{{.Name}}').classList.add('hidden');
+                                            document.getElementById('showAssertions-{{.Name}}').textContent = 'Show';
+                                        }
+                                    }">
+                                        Show
+                                    </button>
+                                    <div class="flex gap-1">
+                                        <button class="text-xs px-2 py-1 rounded-md hover:bg-gray-200 bg-gray-100 text-gray-700" 
+                                                onclick="filterAssertions('{{.Name}}', 'failed')" title="Show only failed assertions">
+                                            Failed
+                                        </button>
+                                        <button class="text-xs px-2 py-1 rounded-md hover:bg-gray-200 bg-gray-100 text-gray-700" 
+                                                onclick="filterAssertions('{{.Name}}', 'passed')" title="Show only passed assertions">
+                                            Passed
+                                        </button>
+                                        <button class="text-xs px-2 py-1 rounded-md hover:bg-gray-200 bg-gray-100 text-gray-700" 
+                                                onclick="filterAssertions('{{.Name}}', 'pending')" title="Show only pending assertions">
+                                            Pending
+                                        </button>
+                                        <button class="text-xs px-2 py-1 rounded-md hover:bg-gray-200 bg-blue-100 text-blue-700" 
+                                                onclick="showAllAssertions('{{.Name}}')" title="Show all assertions">
+                                            All
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="assertions-{{.Name}}" class="hidden">
+                            <div class="space-y-2" id="assertionsList-{{.Name}}">
+                                {{range .AssertionResults}}
+                                <div class="flex items-center justify-between text-sm assertion-item" data-status="{{.Status}}">
+                     
+                                    <button class="text-gray-700 hover:text-gray-900 {{if eq .Status "failed"}}cursor-pointer{{else}}cursor-not-allowed opacity-50{{end}}" 
+                                            {{if eq .Status "failed"}}onclick="showFailureModalFromButton(this)"{{end}}
+                                            data-full-name="{{.FullName}}"
+                                            data-title="{{.Title}}"
+                                            data-failure-details="{{printf "%s" (.FailureDetails | toJson)}}"
+                                            data-failure-messages="{{printf "%s" (.FailureMessages | toJson)}}">
+                                        {{.Title}}
+                                    </button>
+                                    <span class="px-2 py-1 rounded text-xs
+                                        {{if eq .Status "passed"}}bg-green-100 text-green-700{{end}}
+                                        {{if eq .Status "failed"}}bg-red-100 text-red-700{{end}}
+                                        {{if eq .Status "pending"}}bg-yellow-100 text-yellow-700{{end}}">
+                                        {{.Status}}
+                                    </span>
+ 
+                                </div>
+
+                                {{end}}
+                            </div>
+                            </div>
+                        </div>
+                        {{end}}
+                    </div>
+                    {{end}}
+                </div>
+        </div>
+
+        <div class="text-center mt-8">
+                <button 
+                    onclick="window.location.href='/'" 
+                    class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-3 px-8 rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200">
+                    Upload Another File
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="failureModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-2xl rounded-2xl shadow-lg p-6 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b pb-3 mb-4">
+                <h2 class="text-xl font-semibold text-gray-800">
+                    Test Failure Details
+                </h2>
+                <button onclick="closeFailureModal()" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+            </div>
+
+            <div class="mb-4">
+                <h3 class="text-lg font-medium text-gray-700" id="modalTestName">
+                </h3>
+                <p class="text-gray-500 text-sm" id="modalTestTitle">
+                </p>
+            </div>
+
+            <div id="modalFailureDetails" class="mb-4">
+            </div>
+
+            <div id="modalStackTrace" class="bg-gray-100 border border-gray-200 rounded-lg p-3 overflow-auto max-h-48">
+            </div>
+
+            <div class="mt-6 text-right">
+                <button onclick="closeFailureModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-lg">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
