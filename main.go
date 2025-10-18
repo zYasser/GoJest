@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"html/template"
 	"net/http"
 
@@ -9,6 +10,10 @@ import (
 )
 
 func main() {
+	// Parse command line flags
+	port := flag.String("port", "", "Port to run the server on")
+	flag.Parse()
+
 	funcMap := template.FuncMap{
 		"toJson": func(v interface{}) string {
 			jsonBytes, err := json.Marshal(v)
@@ -31,7 +36,13 @@ func main() {
 	http.HandleFunc("/upload-test-summary", summaryHandler.UploadTestSummaryHandler(templates))
 	http.HandleFunc("/summary", summaryHandler.GetSummary(templates))
 
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	// Determine port: command line flag > environment variable > default
+	serverPort := *port
+	if serverPort == "" {
+		serverPort = "8080"
+	}
+
+	if err := http.ListenAndServe(":"+serverPort, nil); err != nil {
 		panic(err)
 	}
 }
