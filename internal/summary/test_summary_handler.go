@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 )
 
 type Summary struct {
@@ -66,6 +67,79 @@ func (s *Summary) UploadTestSummaryHandler(templates *template.Template) http.Ha
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("File uploaded successfully"))
 
+	}
+}
+
+func (s *Summary) UploadJsonTextHandler(templates *template.Template) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		fmt.Printf("JSON text upload request received: Method=%s, Content-Type=%s\n", r.Method, r.Header.Get("Content-Type"))
+
+		if err := r.ParseForm(); err != nil {
+			fmt.Printf("Error parsing form: %v\n", err)
+			http.Error(w, "Error processing form data", http.StatusInternalServerError)
+			return
+		}
+
+		jsonText := r.FormValue("jsonText")
+		if jsonText == "" {
+			fmt.Printf("No JSON text provided\n")
+			http.Error(w, "Please provide JSON text to process", http.StatusBadRequest)
+			return
+		}
+
+		// Trim whitespace
+		jsonText = strings.TrimSpace(jsonText)
+		if jsonText == "" {
+			fmt.Printf("Empty JSON text after trimming\n")
+			http.Error(w, "Please provide valid JSON text (empty content not allowed)", http.StatusBadRequest)
+			return
+		}
+
+		fmt.Printf("JSON text received, length: %d\n", len(jsonText))
+
+		// First, validate if it's valid JSON
+		var jsonData interface{}
+		if err := json.Unmarshal([]byte(jsonText), &jsonData); err != nil {
+			fmt.Printf("Invalid JSON format: %v\n", err)
+			errorMsg := fmt.Sprintf("Invalid JSON format: %s", err.Error())
+			http.Error(w, errorMsg, http.StatusBadRequest)
+			return
+		}
+
+		// Now try to unmarshal into our specific test summary structure
+		err := json.Unmarshal([]byte(jsonText), &s.TestSummary)
+		if err != nil {
+			fmt.Printf("Error unmarshalling JSON into test summary: %v\n", err)
+			errorMsg := fmt.Sprintf("JSON is valid but doesn't match expected test summary format: %s", err.Error())
+			http.Error(w, errorMsg, http.StatusBadRequest)
+			return
+		}
+
+		// Additional validation: check if it has the expected structure
+		if s.TestSummary == nil {
+			fmt.Printf("Test summary is nil after unmarshalling\n")
+			http.Error(w, "Invalid test summary data: missing required fields", http.StatusBadRequest)
+			return
+		}
+
+		// Save to temp file for consistency with file upload
+		tempFile, err := os.Create("tmp.json")
+		if err != nil {
+			fmt.Printf("Error creating temp file: %v\n", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer tempFile.Close()
+		_, err = tempFile.Write([]byte(jsonText))
+		if err != nil {
+			fmt.Printf("Error writing to temp file: %v\n", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("HX-Redirect", "/summary")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("JSON processed successfully"))
 	}
 }
 

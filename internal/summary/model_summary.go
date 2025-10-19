@@ -24,19 +24,19 @@ type TestResult struct {
 }
 
 type Tests struct {
-	FailureDetails    []FailureDetail `json:"failureDetails"`
-	FailureMessages   []string        `json:"failureMessages"`
-	FullName          string          `json:"fullName"`
-	Invocations       int             `json:"invocations"`
-	Location          string          `json:"location"`
-	NumPassingAsserts int             `json:"numPassingAsserts"`
-	RetryReasons      []interface{}   `json:"retryReasons"`
-	Status            string          `json:"status"`
-	Title             string          `json:"title"`
+	FailureDetails    []interface{} `json:"failureDetails"`
+	FailureMessages   []string      `json:"failureMessages"`
+	FullName          string        `json:"fullName"`
+	Invocations       int           `json:"invocations"`
+	Location          string        `json:"location"`
+	NumPassingAsserts int           `json:"numPassingAsserts"`
+	RetryReasons      []interface{} `json:"retryReasons"`
+	Status            string        `json:"status"`
+	Title             string        `json:"title"`
 }
 
 type FailureDetail struct {
-	MatcherResult MatcherResult `json:"matcherResult"`
+	MatcherResult interface{} `json:"matcherResult"`
 }
 
 type MatcherResult struct {

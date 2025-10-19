@@ -45,6 +45,7 @@ func main() {
 	})
 
 	http.HandleFunc("/upload-test-summary", summaryHandler.UploadTestSummaryHandler(templates))
+	http.HandleFunc("/upload-json-text", summaryHandler.UploadJsonTextHandler(templates))
 	http.HandleFunc("/summary", summaryHandler.GetSummary(templates))
 
 	serverPort := *port

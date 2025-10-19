@@ -13,6 +13,7 @@
         }
 
         function showFailureModalFromButton(button) {
+            console.log(button ,"Hello");
             const fullName = button.getAttribute('data-full-name');
             const title = button.getAttribute('data-title');
             const failureDetailsJson = button.getAttribute('data-failure-details');
@@ -44,11 +45,14 @@
             const testTitleElement = document.getElementById('modalTestTitle');
             const failureDetailsElement = document.getElementById('modalFailureDetails');
             const stackTraceElement = document.getElementById('modalStackTrace');
+            const failureMessagesElement = document.getElementById('modalFailureMessages');
+            let errors =''
 
             testNameElement.textContent = fullName;
             testTitleElement.textContent = title;
 
             let failureDetailsHTML = '';
+            console.log(failureDetails);
             if (failureDetails && Array.isArray(failureDetails) && failureDetails.length > 0) {
                 failureDetails.forEach((detail, index) => {
                     if (detail && detail.matcherResult) {
@@ -74,12 +78,13 @@
                                 </p>
                             </div>
                         `;
+                    }else if (detail) {
+                        errors+=`<pre class="text-xs text-gray-700 font-mono whitespace-pre-wrap">${stripAnsiCodes(JSON.stringify(detail))}</pre>`;
                     }
                 });
             }
 
             failureDetailsElement.innerHTML = failureDetailsHTML || '<p class="text-gray-500">No failure details available</p>';
-
             let stackTraceHTML = '';
             if (failureMessages && Array.isArray(failureMessages) && failureMessages.length > 0) {
                 failureMessages.forEach(message => {
@@ -88,7 +93,13 @@
                     }
                 });
             }
-
+            if(errors.length > 0) {
+                console.log(errors ,"errors");
+                failureMessagesElement.classList.remove('hidden');
+            }else if(errors.length === 0 || !errors) {
+                failureMessagesElement.classList.add('hidden');
+            }
+            failureMessagesElement.innerHTML = errors;
             stackTraceElement.innerHTML = stackTraceHTML || '<p class="text-gray-500">No stack trace available</p>';
 
             modal.classList.remove('hidden');
@@ -410,6 +421,12 @@
 
             <div id="modalStackTrace" class="bg-gray-100 border border-gray-200 rounded-lg p-3 overflow-auto max-h-48">
             </div>
+            <div id="modalFailureMessages" class="hidden mt-3 bg-gray-100 border border-gray-200 rounded-lg p-3 overflow-auto max-h-48">
+                <h4 class="text-sm font-semibold text-gray-700">Failure Messages:</h4>
+                <pre class="text-xs text-gray-700 font-mono whitespace-pre-wrap hidden" id="modalFailureMessagesText">
+                </pre>
+            </div>
+
 
             <div class="mt-6 text-right">
                 <button onclick="closeFailureModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-lg">

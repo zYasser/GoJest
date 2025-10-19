@@ -22,7 +22,31 @@
       </div>
 
       <div class="max-w-2xl mx-auto">
+        <!-- Toggle buttons -->
+        <div class="flex justify-center mb-6">
+          <div class="bg-gray-100 rounded-lg p-1 flex">
+            <button
+              type="button"
+              id="fileModeBtn"
+              class="px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 bg-white text-gray-900 shadow-sm"
+              onclick="switchToFileMode()"
+            >
+              📁 Upload File
+            </button>
+            <button
+              type="button"
+              id="textModeBtn"
+              class="px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 text-gray-500 hover:text-gray-700"
+              onclick="switchToTextMode()"
+            >
+              📝 Paste JSON
+            </button>
+          </div>
+        </div>
+
+        <!-- File Upload Form -->
         <form
+          id="fileForm"
           action="/upload-test-summary"
           method="post"
           enctype="multipart/form-data"
@@ -30,7 +54,6 @@
           hx-post="/upload-test-summary"
           hx-target="#result"
           hx-indicator="#loading"
-          
         >
           <div
             class="relative border-2 border-dashed border-gray-300 rounded-xl p-12 text-center hover:border-blue-400 hover:bg-blue-50 transition-all duration-300 group"
@@ -117,6 +140,82 @@
           </div>
         </form>
 
+        <!-- JSON Text Input Form -->
+        <form
+          id="textForm"
+          action="/upload-json-text"
+          method="post"
+          class="space-y-6 hidden"
+          hx-post="/upload-json-text"
+          hx-target="#result"
+          hx-indicator="#loading"
+        >
+          <div class="space-y-4">
+            <label for="jsonText" class="block text-sm font-medium text-gray-700">
+              Paste your JSON test summary data:
+            </label>
+            <textarea
+              id="jsonText"
+              name="jsonText"
+              rows="12"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+              placeholder="Paste your JSON test summary data here..."
+              required
+              oninput="validateJson()"
+              onpaste="setTimeout(validateJson, 100)"
+            ></textarea>
+            <div id="jsonValidationStatus" class="hidden">
+              <div id="jsonValid" class="flex items-center text-sm text-green-600 hidden">
+                <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                </svg>
+                Valid JSON format
+              </div>
+              <div id="jsonInvalid" class="flex items-center text-sm text-red-600 hidden">
+                <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                </svg>
+                <span id="jsonErrorMsg">Invalid JSON format</span>
+              </div>
+            </div>
+            <p class="text-sm text-gray-500">
+              Paste the JSON content from your test summary file directly into this text area.
+            </p>
+          </div>
+
+          <div class="text-center">
+            <button
+              type="submit"
+              class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-3 px-8 rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+            >
+              <span>Process JSON</span>
+              <span id="loading" class="htmx-indicator">
+                <svg
+                  class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    class="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    stroke-width="4"
+                  ></circle>
+                  <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                Processing...
+              </span>
+            </button>
+          </div>
+        </form>
+
         <div id="result" class="mt-6">
         </div>
 
@@ -124,6 +223,71 @@
     </div>
 
     <script>
+      function switchToFileMode() {
+        document.getElementById('fileForm').classList.remove('hidden');
+        document.getElementById('textForm').classList.add('hidden');
+        document.getElementById('fileModeBtn').classList.add('bg-white', 'text-gray-900', 'shadow-sm');
+        document.getElementById('fileModeBtn').classList.remove('text-gray-500', 'hover:text-gray-700');
+        document.getElementById('textModeBtn').classList.remove('bg-white', 'text-gray-900', 'shadow-sm');
+        document.getElementById('textModeBtn').classList.add('text-gray-500', 'hover:text-gray-700');
+        // Clear validation status when switching modes
+        clearJsonValidation();
+      }
+
+      function switchToTextMode() {
+        document.getElementById('fileForm').classList.add('hidden');
+        document.getElementById('textForm').classList.remove('hidden');
+        document.getElementById('textModeBtn').classList.add('bg-white', 'text-gray-900', 'shadow-sm');
+        document.getElementById('textModeBtn').classList.remove('text-gray-500', 'hover:text-gray-700');
+        document.getElementById('fileModeBtn').classList.remove('bg-white', 'text-gray-900', 'shadow-sm');
+        document.getElementById('fileModeBtn').classList.add('text-gray-500', 'hover:text-gray-700');
+        // Clear validation status when switching modes
+        clearJsonValidation();
+      }
+
+      function validateJson() {
+        const jsonText = document.getElementById('jsonText').value.trim();
+        const validationStatus = document.getElementById('jsonValidationStatus');
+        const validDiv = document.getElementById('jsonValid');
+        const invalidDiv = document.getElementById('jsonInvalid');
+        const errorMsg = document.getElementById('jsonErrorMsg');
+        const submitBtn = document.querySelector('#textForm button[type="submit"]');
+
+        if (jsonText === '') {
+          validationStatus.classList.add('hidden');
+          submitBtn.disabled = false;
+          return;
+        }
+
+        try {
+          JSON.parse(jsonText);
+          // Valid JSON
+          validationStatus.classList.remove('hidden');
+          validDiv.classList.remove('hidden');
+          invalidDiv.classList.add('hidden');
+          submitBtn.disabled = false;
+        } catch (error) {
+          // Invalid JSON
+          validationStatus.classList.remove('hidden');
+          validDiv.classList.add('hidden');
+          invalidDiv.classList.remove('hidden');
+          errorMsg.textContent = `Invalid JSON: ${error.message}`;
+          submitBtn.disabled = true;
+        }
+      }
+
+      function clearJsonValidation() {
+        const validationStatus = document.getElementById('jsonValidationStatus');
+        const validDiv = document.getElementById('jsonValid');
+        const invalidDiv = document.getElementById('jsonInvalid');
+        const submitBtn = document.querySelector('#textForm button[type="submit"]');
+        
+        validationStatus.classList.add('hidden');
+        validDiv.classList.add('hidden');
+        invalidDiv.classList.add('hidden');
+        submitBtn.disabled = false;
+      }
+
       function handleDragOver(e) {
         e.preventDefault();
         e.currentTarget.classList.add(
