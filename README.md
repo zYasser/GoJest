@@ -35,23 +35,8 @@ A modern web application for visualizing and analyzing Jest test results. GoJest
    go build -o gojest.exe .
    ```
 
-4. **Run GoJest **
 
-   ```bash
-   # Run with default port (8080)
-   gojest
-
-   # Run with custom port
-   gojest -port 3000
-
-   # Show help
-   gojest -help
-
-   # Show version
-   gojest -version
-   ```
-
-5. **Access the application**
+4. **Access the application**
    Open your browser and navigate to `http://localhost:8080` (or your custom port)
 
 ## 📁 Project Structure
@@ -178,4 +163,5 @@ The application supports flexible port configuration:
 3. Default port (8080)
 
 ---
+
 
